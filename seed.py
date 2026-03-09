@@ -46,15 +46,15 @@ def seed_database():
             {"name": "FP技能士3級", "category": "財務・金融", "tier": 5, "base_score": 25},
 
             # 3. 法務・労務・知財
-            {"name": "弁護士", "category": "法務・労務・知財", "tier": 1, "base_score": 100},
-            {"name": "弁理士", "category": "法務・労務・知財", "tier": 1, "base_score": 95},
-            {"name": "司法書士", "category": "法務・労務・知財", "tier": 1, "base_score": 90},
-            {"name": "社会保険労務士", "category": "法務・労務・知財", "tier": 2, "base_score": 80},
-            {"name": "行政書士", "category": "法務・労務・知財", "tier": 3, "base_score": 65},
+            {"name": "弁護士", "category": "法務・労務・知財", "tier": 1, "base_score": 100, "affiliate_link": """<a href="https://px.a8.net/svt/ejp?a8mat=4AZBO5+9QODMQ+373C+6B70H" rel="nofollow"><img border="0" width="300" height="250" alt="" src="https://www21.a8.net/svt/bgt?aid=260308949589&wid=003&eno=01&mid=s00000014916001060000&mc=1"></a><img border="0" width="1" height="1" src="https://www16.a8.net/0.gif?a8mat=4AZBO5+9QODMQ+373C+6B70H" alt="">"""},
+            {"name": "弁理士", "category": "法務・労務・知財", "tier": 1, "base_score": 95, "affiliate_link": """<a href="https://px.a8.net/svt/ejp?a8mat=4AZBO5+9QODMQ+373C+6B70H" rel="nofollow"><img border="0" width="300" height="250" alt="" src="https://www21.a8.net/svt/bgt?aid=260308949589&wid=003&eno=01&mid=s00000014916001060000&mc=1"></a><img border="0" width="1" height="1" src="https://www16.a8.net/0.gif?a8mat=4AZBO5+9QODMQ+373C+6B70H" alt="">"""},
+            {"name": "司法書士", "category": "法務・労務・知財", "tier": 1, "base_score": 90, "affiliate_link": """<a href="https://px.a8.net/svt/ejp?a8mat=4AZBO5+9QODMQ+373C+6B70H" rel="nofollow"><img border="0" width="300" height="250" alt="" src="https://www21.a8.net/svt/bgt?aid=260308949589&wid=003&eno=01&mid=s00000014916001060000&mc=1"></a><img border="0" width="1" height="1" src="https://www16.a8.net/0.gif?a8mat=4AZBO5+9QODMQ+373C+6B70H" alt="">"""},
+            {"name": "社会保険労務士", "category": "法務・労務・知財", "tier": 2, "base_score": 80, "affiliate_link": """<a href="https://px.a8.net/svt/ejp?a8mat=4AZBO5+9QODMQ+373C+6B70H" rel="nofollow"><img border="0" width="300" height="250" alt="" src="https://www21.a8.net/svt/bgt?aid=260308949589&wid=003&eno=01&mid=s00000014916001060000&mc=1"></a><img border="0" width="1" height="1" src="https://www16.a8.net/0.gif?a8mat=4AZBO5+9QODMQ+373C+6B70H" alt="">"""},
+            {"name": "行政書士", "category": "法務・労務・知財", "tier": 3, "base_score": 65, "affiliate_link": """<a href="https://px.a8.net/svt/ejp?a8mat=4AZBO5+9QODMQ+373C+6B70H" rel="nofollow"><img border="0" width="300" height="250" alt="" src="https://www21.a8.net/svt/bgt?aid=260308949589&wid=003&eno=01&mid=s00000014916001060000&mc=1"></a><img border="0" width="1" height="1" src="https://www16.a8.net/0.gif?a8mat=4AZBO5+9QODMQ+373C+6B70H" alt="">"""},
             {"name": "第一種衛生管理者", "category": "法務・労務・知財", "tier": 3, "base_score": 55},
-            {"name": "ビジネス実務法務検定 2級", "category": "法務・労務・知財", "tier": 4, "base_score": 45},
+            {"name": "ビジネス実務法務検定 2級", "category": "法務・労務・知財", "tier": 4, "base_score": 45, "affiliate_link": """<a href="https://px.a8.net/svt/ejp?a8mat=4AZBO5+9QODMQ+373C+6B70H" rel="nofollow"><img border="0" width="300" height="250" alt="" src="https://www21.a8.net/svt/bgt?aid=260308949589&wid=003&eno=01&mid=s00000014916001060000&mc=1"></a><img border="0" width="1" height="1" src="https://www16.a8.net/0.gif?a8mat=4AZBO5+9QODMQ+373C+6B70H" alt="">"""},
             {"name": "知的財産管理技能検定 2級", "category": "法務・労務・知財", "tier": 4, "base_score": 45},
-            {"name": "ビジネス実務法務検定 3級", "category": "法務・労務・知財", "tier": 5, "base_score": 25},
+            {"name": "ビジネス実務法務検定 3級", "category": "法務・労務・知財", "tier": 5, "base_score": 25, "affiliate_link": """<a href="https://px.a8.net/svt/ejp?a8mat=4AZBO5+9QODMQ+373C+6B70H" rel="nofollow"><img border="0" width="300" height="250" alt="" src="https://www21.a8.net/svt/bgt?aid=260308949589&wid=003&eno=01&mid=s00000014916001060000&mc=1"></a><img border="0" width="1" height="1" src="https://www16.a8.net/0.gif?a8mat=4AZBO5+9QODMQ+373C+6B70H" alt="">"""},
             {"name": "第二種衛生管理者", "category": "法務・労務・知財", "tier": 5, "base_score": 25},
 
             # 4. IT・データ
@@ -135,10 +135,10 @@ def seed_database():
             {"name": "不動産鑑定士", "category": "不動産・施設管理", "tier": 1, "base_score": 95},
             {"name": "建築物環境衛生管理技術者 (ビル管理士)", "category": "不動産・施設管理", "tier": 3, "base_score": 65},
             {"name": "マンション管理士", "category": "不動産・施設管理", "tier": 3, "base_score": 65},
-            {"name": "宅地建物取引士", "category": "不動産・施設管理", "tier": 4, "base_score": 60},
+            {"name": "宅地建物取引士", "category": "不動産・施設管理", "tier": 4, "base_score": 60, "affiliate_link": """<a href="https://px.a8.net/svt/ejp?a8mat=4AZBO5+9QODMQ+373C+6B70H" rel="nofollow"><img border="0" width="300" height="250" alt="" src="https://www21.a8.net/svt/bgt?aid=260308949589&wid=003&eno=01&mid=s00000014916001060000&mc=1"></a><img border="0" width="1" height="1" src="https://www16.a8.net/0.gif?a8mat=4AZBO5+9QODMQ+373C+6B70H" alt="">"""},
             {"name": "認定ファシリティマネジャー", "category": "不動産・施設管理", "tier": 4, "base_score": 55},
             {"name": "管理業務主任者", "category": "不動産・施設管理", "tier": 5, "base_score": 40},
-            {"name": "消防設備士 (甲種4類)", "category": "不動産・施設管理", "tier": 5, "base_score": 35},,
+            {"name": "消防設備士 (甲種4類)", "category": "不動産・施設管理", "tier": 5, "base_score": 35},
 
         {'name': 'AWS Certified Machine Learning Engineer - Associate (MLA)', 'category': 'IT・データ', 'tier': 2, 'base_score': 85},
 
@@ -152,7 +152,7 @@ def seed_database():
 
         {'name': '貿易実務検定', 'category': '語学・グローバル', 'tier': 3, 'base_score': 60},
 
-        {'name': '自動車運転免許', 'category': '不動産・施設管理', 'tier': 5, 'base_score': 30},,
+        {'name': '自動車運転免許', 'category': '不動産・施設管理', 'tier': 5, 'base_score': 30},
 
 
         {'name': 'AWS Certified Solutions Architect - Professional', 'category': 'IT・データ', 'tier': 1, 'base_score': 95},
@@ -188,7 +188,7 @@ def seed_database():
         {'name': 'PMP (Project Management Professional)', 'category': '経営・ビジネス', 'tier': 2, 'base_score': 85},
 
 
-        {'name': '社会保険労務士', 'category': '法務・労務・知財', 'tier': 2, 'base_score': 80},
+        {'name': '社会保険労務士', 'category': '法務・労務・知財', 'tier': 2, 'base_score': 80, 'affiliate_link': """<a href="https://px.a8.net/svt/ejp?a8mat=4AZBO5+9QODMQ+373C+6B70H" rel="nofollow"><img border="0" width="300" height="250" alt="" src="https://www21.a8.net/svt/bgt?aid=260308949589&wid=003&eno=01&mid=s00000014916001060000&mc=1"></a><img border="0" width="1" height="1" src="https://www16.a8.net/0.gif?a8mat=4AZBO5+9QODMQ+373C+6B70H" alt="">"""},
 
 
         {'name': '中小企業診断士', 'category': '経営・ビジネス', 'tier': 2, 'base_score': 80},
@@ -209,13 +209,17 @@ def seed_database():
         {'name': '不動産鑑定士', 'category': '不動産・施設管理', 'tier': 1, 'base_score': 95},
 
 
-        {'name': '宅地建物取引士', 'category': '不動産・施設管理', 'tier': 3, 'base_score': 65},
+        {'name': '宅地建物取引士', 'category': '不動産・施設管理', 'tier': 3, 'base_score': 65, 'affiliate_link': """<a href="https://px.a8.net/svt/ejp?a8mat=4AZBO5+9QODMQ+373C+6B70H" rel="nofollow"><img border="0" width="300" height="250" alt="" src="https://www21.a8.net/svt/bgt?aid=260308949589&wid=003&eno=01&mid=s00000014916001060000&mc=1"></a><img border="0" width="1" height="1" src="https://www16.a8.net/0.gif?a8mat=4AZBO5+9QODMQ+373C+6B70H" alt="">"""},
 
 
         ]
         
         qualifications = []
+        seen_names = set()
         for q_data in qualifications_data:
+            if q_data["name"] in seen_names:
+                continue
+            seen_names.add(q_data["name"])
             q = Qualification(**q_data)
             session.add(q)
             qualifications.append(q)
