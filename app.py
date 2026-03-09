@@ -302,16 +302,26 @@ if reach_synergies:
                     st.link_button(f"[PR] 👉 {quali.name} のおすすめ講座をチェック", quali.affiliate_link)
                 # パターンC: 未登録 (Amazon検索URL自動生成)
                 else:
-                    amazon_url = f"https://www.amazon.co.jp/s?k={quote(quali.name)}+資格+テキスト"
+                    amazon_url = f"https://www.amazon.co.jp/s?k={quote(quali.name)}+資格+テキスト&tag=skillradar-22"
                     st.link_button(f"[PR] 📚 {quali.name} の公式テキスト・過去問を探す", amazon_url)
 
         elif first_missing.required_category:
             missing_text = f"【{first_missing.required_category}】領域の資格"
             st.info(f"💡 あと{missing_text}を取得すれば、称号『{syn.title_name} (+{syn.bonus_score}pt)』が発動します！")
             
-            # カテゴリ不足の場合 (Udemy検索URL自動生成)
-            udemy_url = f"https://www.udemy.com/courses/search/?q={quote(first_missing.required_category)}+資格"
-            st.link_button(f"[PR] 💻 【{first_missing.required_category}】領域のオンライン講座を探す", udemy_url)
+            # おすすめの資格（同じカテゴリでアフィリエイトリンクがあるもの）を探す
+            recommended_qual = next((q for q in all_qualifications if q.category == first_missing.required_category and q.affiliate_link), None)
+            
+            if recommended_qual:
+                st.write(f"おすすめ: **{recommended_qual.name}**")
+                if recommended_qual.affiliate_link.startswith("<"):
+                    st.markdown(recommended_qual.affiliate_link, unsafe_allow_html=True)
+                elif recommended_qual.affiliate_link.startswith("http"):
+                    st.link_button(f"[PR] 👉 {recommended_qual.name} のおすすめ講座をチェック", recommended_qual.affiliate_link)
+            else:
+                # カテゴリ不足の場合 (Udemy検索URL自動生成)
+                udemy_url = f"https://www.udemy.com/courses/search/?q={quote(first_missing.required_category)}+資格"
+                st.link_button(f"[PR] 💻 【{first_missing.required_category}】領域のオンライン講座を探す", udemy_url)
 
 else:
     st.write("さらに別のカテゴリの資格を取得して、新たなシナジーを見つけましょう！")
@@ -348,6 +358,8 @@ df_ranking.index.name = "順位"
 
 # 表として出力
 st.dataframe(df_ranking, use_container_width=True)
+
+st.caption("Amazonのアソシエイトとして、当メディアは適格販売により収入を得ています。")
 
 # 実装の補足情報
 with st.expander("🛠️ システムの仕組み (デバッグ情報)"):
