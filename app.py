@@ -250,6 +250,16 @@ st.markdown("---")
 # 5. アフィリエイトレコメンド機能（次の目標）
 st.subheader("🎯 次の目標（おすすめの資格）")
 
+category_map = {
+    "電気・通信・エネ": "電気 通信 資格",
+    "IT・データ": "IT 資格",
+    "経営・ビジネス": "ビジネス 経営 資格",
+    "法務・労務・知財": "法務 労務 資格",
+    "機械・電気": "機械 電気 資格",
+    "土木・建築・施工": "建築 施工 資格",
+    "安全・環境・品質": "安全衛生 環境 資格"
+}
+
 reach_synergies = []
 
 # すでに発動しているシナジー以外からリーチ状態を探す
@@ -320,7 +330,8 @@ if reach_synergies:
                     st.link_button(f"[PR] {recommended_qual.name} のおすすめ講座をチェック", recommended_qual.affiliate_link)
             else:
                 # カテゴリ不足の場合 (Amazon検索URL自動生成)
-                amazon_url = f"https://www.amazon.co.jp/s?k={quote(first_missing.required_category)}+資格+テキスト&tag=skillradar-22"
+                search_keyword = category_map.get(first_missing.required_category, first_missing.required_category.replace("・", " ") + " 資格")
+                amazon_url = f"https://www.amazon.co.jp/s?k={quote(search_keyword)}+テキスト&tag=skillradar-22"
                 st.link_button(f"[PR] 【{first_missing.required_category}】領域の資格テキストを探す", amazon_url)
 
 else:
