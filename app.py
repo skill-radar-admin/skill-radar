@@ -250,14 +250,18 @@ st.markdown("---")
 # 5. アフィリエイトレコメンド機能（次の目標）
 st.subheader("🎯 次の目標（おすすめの資格）")
 
-category_map = {
-    "電気・通信・エネ": "電気 通信 資格",
+# Amazon検索で確実に資格本がヒットする汎用キーワード辞書
+category_amazon_keyword = {
     "IT・データ": "IT 資格",
-    "経営・ビジネス": "ビジネス 経営 資格",
+    "経営・ビジネス": "ビジネス 資格",
     "法務・労務・知財": "法務 労務 資格",
+    "財務・金融": "財務 金融 資格",
+    "語学・グローバル": "語学 英語 資格",
     "機械・電気": "機械 電気 資格",
-    "土木・建築・施工": "建築 施工 資格",
-    "安全・環境・品質": "安全衛生 環境 資格"
+    "機械・製造": "機械 資格",  # 「機械製造」ではなく「機械 資格」に変換
+    "土木・建築・施工": "建築 施工管理 資格",
+    "電気・通信・エネ": "電気 通信 資格",
+    "安全・環境・品質": "安全衛生 品質 資格"
 }
 
 reach_synergies = []
@@ -330,8 +334,11 @@ if reach_synergies:
                     st.link_button(f"[PR] {recommended_qual.name} のおすすめ講座をチェック", recommended_qual.affiliate_link)
             else:
                 # カテゴリ不足の場合 (Amazon検索URL自動生成)
-                search_keyword = category_map.get(first_missing.required_category, first_missing.required_category.replace("・", " ") + " 資格")
-                amazon_url = f"https://www.amazon.co.jp/s?k={quote(search_keyword)}+テキスト&tag=skillradar-22"
+                # 辞書からキーワードを取得。辞書にない未知のカテゴリの場合は「・」を空白にして「 資格」を末尾に付与する安全設計。
+                base_keyword = category_amazon_keyword.get(first_missing.required_category, first_missing.required_category.replace("・", " ") + " 資格")
+                
+                # 最終的な検索URL（例：「機械 資格 テキスト」となるように結合）
+                amazon_url = f"https://www.amazon.co.jp/s?k={quote(base_keyword)}+テキスト&tag=skillradar-22"
                 st.link_button(f"[PR] 【{first_missing.required_category}】領域の資格テキストを探す", amazon_url)
 
 else:
@@ -371,6 +378,24 @@ df_ranking.index.name = "順位"
 st.dataframe(df_ranking, use_container_width=True)
 
 st.caption("Amazonのアソシエイトとして、当メディアは適格販売により収入を得ています。")
+
+# キャリア相談セクション
+st.markdown("---")
+st.subheader("🚀 診断結果を活かしてキャリアの可能性を探る")
+
+# Neuro Dive テキストリンク（広告ブロック回避とクリック率向上のためのスタイリング）
+neuro_dive_html = '''
+<div style="text-align: center; margin: 20px 0; padding: 15px; background-color: #f0f7ff; border: 1px solid #cce5ff; border-radius: 8px;">
+    <p style="font-weight: bold; color: #004085; margin-bottom: 10px; font-size: 16px;">
+        ＼ AIやデータサイエンス領域で、さらに市場価値を高めるなら ／
+    </p>
+    <div style="font-size: 18px; font-weight: bold;">
+        <a href="https://px.a8.net/svt/ejp?a8mat=4AZD87+4ASRLU+47GS+HVFKY" target="_blank" rel="nofollow" style="color: #0056b3; text-decoration: underline;">AIやデータサイエンスが学べるIT特化の就労移行支援【Neuro Dive】</a>
+        <img border="0" width="1" height="1" src="https://www12.a8.net/0.gif?a8mat=4AZD87+4ASRLU+47GS+HVFKY" alt="" style="display:none;">
+    </div>
+</div>
+'''
+st.markdown(neuro_dive_html, unsafe_allow_html=True)
 
 # 実装の補足情報
 with st.expander("🛠️ システムの仕組み (デバッグ情報)"):
