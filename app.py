@@ -397,6 +397,33 @@ neuro_dive_html = '''
 '''
 st.markdown(neuro_dive_html, unsafe_allow_html=True)
 
+# 学習・開発環境（PC）セクション
+st.markdown("---")
+st.subheader("学習・開発環境のアップデート")
+
+pc_ad_html = '''
+<div style="padding: 20px; background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; margin-bottom: 30px;">
+    <p style="text-align: center; font-weight: bold; color: #495057; margin-bottom: 20px; font-size: 15px;">
+        ＼ DX推進やプログラミング学習の効率を最大化する推奨PCブランド ／
+    </p>
+    <div style="display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 20px;">
+        <div style="text-align: center;">
+            <a href="https://click.linksynergy.com/fs-bin/click?id=yw57HLgzpBw&offerid=252926.485&type=4&subid=0" target="_blank" rel="nofollow"><img alt="HP Directplus -HP公式オンラインストア-" border="0" src="https://jp.ext.hp.com/content/dam/jp-ext-hp-com/jp/ja/ec/directplus/aff_banner/AFF_Point_468x60.jpg" style="max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></a><img border="0" width="1" height="1" src="https://ad.linksynergy.com/fs-bin/show?id=yw57HLgzpBw&bids=252926.485&type=4&subid=0" style="display:none;">
+        </div>
+        <div style="text-align: center;">
+            <a href="https://click.linksynergy.com/fs-bin/click?id=yw57HLgzpBw&offerid=39250.10000123&type=4&subid=0" target="_blank" rel="nofollow"><img alt="デル株式会社" border="0" src="https://i.dell.com/images/jp/banners/banners_l/campaign1_400x100.gif" style="max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></a><img border="0" width="1" height="1" src="https://ad.linksynergy.com/fs-bin/show?id=yw57HLgzpBw&bids=39250.10000123&type=4&subid=0" style="display:none;">
+        </div>
+        <div style="text-align: center;">
+            <a href="https://click.linksynergy.com/fs-bin/click?id=yw57HLgzpBw&offerid=183092.10001122&type=4&subid=0" target="_blank" rel="nofollow"><img alt="富士通 FMV Note P" border="0" src="https://www.fmv.com/on/demandware.static/-/Library-Sites-FCCLSharedLibrary/default/other_contents/ls/banner/ph_320_50.gif" style="max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></a><img border="0" width="1" height="1" src="https://ad.linksynergy.com/fs-bin/show?id=yw57HLgzpBw&bids=183092.10001122&type=4&subid=0" style="display:none;">
+        </div>
+        <div style="text-align: center;">
+            <a href="https://linksynergy.jrs5.com/fs-bin/click?id=yw57HLgzpBw&offerid=233988.10000289&type=4&subid=0" target="_blank" rel="nofollow"><img alt="Dynabook Direct" border="0" src="https://dynabook.com/direct/pc-static/tieup/linkshare/outlet_120_60.gif" style="max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></a><img border="0" width="1" height="1" src="https://ad.linksynergy.com/fs-bin/show?id=yw57HLgzpBw&bids=233988.10000289&type=4&subid=0" style="display:none;">
+        </div>
+    </div>
+</div>
+'''
+st.markdown(pc_ad_html, unsafe_allow_html=True)
+
 # 実装の補足情報
 with st.expander("🛠️ システムの仕組み (デバッグ情報)"):
     st.write("利用可能な全シナジー条件:")
