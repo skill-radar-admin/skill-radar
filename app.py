@@ -4,6 +4,10 @@ import plotly.express as px
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from urllib.parse import quote
+from supabase import create_client, Client
+import google.generativeai as genai
+from PIL import Image
+import json
 from models import User, Qualification, Synergy, SynergyRequirement
 
 # データベース接続設定
@@ -20,75 +24,316 @@ def get_db_session():
 # ページ設定
 st.set_page_config(page_title="Skill Radar Dashboard", layout="wide")
 
-@st.dialog("資格の追加審査フロー")
-def request_qualification_dialog():
-    st.markdown("当データベースにない資格でも、ビジネス市場価値が高いものは運営の審査を経て追加・スコア化されます。")
-    st.markdown("1. 下の決済ボタン(Stripe)から審査・登録料（500円）をお支払いください。決済画面の入力欄に「希望する資格名」をご記入いただきます。")
-    st.markdown("2. 運営チーム（AI含む）が市場価値を調査し、Tierとスコアを決定の上、データベースに追加します。")
-    st.markdown("3. 登録完了後、決済時にご入力いただいたメールアドレス宛に結果をご連絡いたします。（※万が一、審査基準を満たさず追加見送りとなった場合は全額返金いたします）")
-    st.link_button("Stripeで決済してリクエストする", "https://buy.stripe.com/test_link", type="primary")
+# ----- 資格の「出現確率（レア度）」辞書（ディープリサーチ結果を反映） -----
+rarity_map = {
+    "CBAP (ビジネスアナリシス・プロフェッショナル)": 69000,
+    "メンタルヘルス・マネジメント検定 I種": 5750,
+    "経営学検定 中級・上級": 4600,
+    "中小企業診断士": 2300,
+    "PMP (プロジェクトマネジメントプロフェッショナル)": 1725,
+    "ビジネスマネジャー検定": 1533,
+    "Google アナリティクス個人認定資格 (GAIQ)": 1380,
+    "キャリアコンサルタント": 1047,
+    "MBA (経営学修士)": 690,
+    "メンタルヘルス・マネジメント検定 II種": 276,
+    "秘書検定 2級": 19,
+    "USCPA (米国公認会計士)": 5750,
+    "CFP (サーティファイド・ファイナンシャル・プランナー)": 2760,
+    "証券アナリスト": 2308,
+    "公認会計士": 1941,
+    "ビジネス会計検定 2級": 1725,
+    "FP技能士1級": 1061,
+    "税理士": 844,
+    "日商簿記1級": 690,
+    "AFP": 431,
+    "FP技能士2級": 57,
+    "日商簿記2級": 27,
+    "FP技能士3級": 34,
+    "日商簿記3級": 11,
+    "弁理士": 5750,
+    "司法書士": 3000,
+    "弁護士": 1506,
+    "社会保険労務士": 1486,
+    "行政書士": 1303,
+    "知的財産管理技能検定 2級": 1150,
+    "ビジネス実務法務検定 2級": 345,
+    "ビジネス実務法務検定 3級": 138,
+    "第二種衛生管理者": 69,
+    "第一種衛生管理者": 46,
+    "Salesforce 認定テクニカルアーキテクト": 460000,
+    "CCIE": 46000,
+    "Oracle Master Platinum": 23000,
+    "統計検定 準1級": 17250,
+    "Google Cloud Professional Cloud Architect": 13800,
+    "CISA (公認情報システム監査人)": 11500,
+    "AWS Certified Solutions Architect - Professional": 8625,
+    "E資格 (ディープラーニング)": 8625,
+    "ITストラテジスト": 6900,
+    "Python3エンジニア認定データ分析実践試験": 4600,
+    "データサイエンティスト検定 (リテラシーレベル)": 3450,
+    "情報処理安全確保支援士 (登録セキスペ)": 3136,
+    "CCNP": 2300,
+    "統計検定 3級": 2300,
+    "Oracle Master Gold": 1725,
+    "Salesforce 認定アドミニストレーター": 1725,
+    "データベーススペシャリスト": 1533,
+    "ネットワークスペシャリスト": 1380,
+    "AWS Certified Solutions Architect - Associate": 1380,
+    "G検定 (ジェネラリスト検定)": 690,
+    "AWS Certified Cloud Practitioner": 690,
+    "CCNA": 460,
+    "Oracle Master Silver": 460,
+    "応用情報技術者": 230,
+    "Oracle Master Bronze": 230,
+    "基本情報技術者": 57,
+    "ITパスポート": 46,
+    "TOEFL iBT 100点以上": 2300,
+    "HSK 5級 (中国語)": 1725,
+    "英検1級": 1380,
+    "TOEIC 900点以上": 460,
+    "英検準1級": 230,
+    "TOEIC 800点以上": 172,
+    "TOEIC 700点以上": 69,
+    "TOEIC 600点以上": 27,
+    "電験一種 (第一種電気主任技術者)": 11500,
+    "電験二種 (第二種電気主任技術者)": 1971,
+    "電気通信主任技術者": 862,
+    "エネルギー管理士": 766,
+    "工事担任者 (総合通信)": 460,
+    "危険物取扱者 甲種": 276,
+    "電験三種 (第三種電気主任技術者)": 197,
+    "第一種電気工事士": 115,
+    "第二種電気工事士": 19,
+    "危険物取扱者 乙種4類": 13,
+    "ボイラー技士 (特級)": 5750,
+    "機械保全技能士 (特級)": 4600,
+    "QC検定1級": 6900,
+    "自主保全士 (1級)": 1380,
+    "公害防止管理者 (大気1種/水質1種)": 862,
+    "技術士 (機械部門/金属部門/経営工学部門等)": 690,
+    "QC検定2級": 383,
+    "機械保全技能士 (1級)": 276,
+    "1級ボイラー技士": 230,
+    "QC検定3級": 138,
+    "2級ボイラー技士": 46,
+    "測量士": 460,
+    "1級電気工事施工管理技士": 345,
+    "1級建築施工管理技士": 197,
+    "一級建築士": 186,
+    "1級土木施工管理技士": 172,
+    "二級建築士": 88,
+    "測量士補": 57,
+    "2級施工管理技士 (各種)": 38,
+    "不動産鑑定士": 8117,
+    "認定ファシリティマネジャー": 4600,
+    "マンション管理士": 1971,
+    "管理業務主任者": 690,
+    "建築物環境衛生管理技術者 (ビル管理士)": 627,
+    "消防設備士 (甲種4類)": 230,
+    "宅地建物取引士": 57
+}
 
+# ----- Gemini API 認証 -----
+if "GEMINI_API_KEY" in st.secrets:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+
+def parse_receipt_with_gemini(image):
+    """Gemini 1.5 Flashを使ってレシート画像を解析しJSONで返す関数"""
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        prompt = """
+        あなたは厳格な経理アシスタントです。添付されたnoteの購入レシート画像（またはメールのスクリーンショット）を解析し、
+        以下のJSONフォーマットのみを絶対に出力してください。Markdownの```jsonなどの装飾も不要です。
+
+        {
+            "is_valid_receipt": true または false (noteの300円のレシートとして有効か),
+            "order_number": "抽出した注文番号（note-から始まる番号など。なければ空文字）",
+            "price": 300 (数値で抽出)
+        }
+        """
+        response = model.generate_content([prompt, image])
+        result_text = response.text.strip().replace("```json", "").replace("```", "")
+        return json.loads(result_text)
+    except Exception as e:
+        return {"is_valid_receipt": False, "error": str(e)}
+
+# ----- Supabase 認証 -----
+@st.cache_resource
+def init_supabase() -> Client:
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    return create_client(url, key)
+
+try:
+    supabase = init_supabase()
+except Exception as e:
+    st.error(f"Supabase初期化エラー: {e}")
+    st.stop()
+
+st.sidebar.header("ユーザー認証")
+
+if "user" not in st.session_state:
+    st.session_state.user = None
+if "is_premium" not in st.session_state:
+    st.session_state.is_premium = False
+
+# ログイン状態の確認とプレミアム判定
+if st.session_state.user is None:
+    tab1, tab2 = st.sidebar.tabs(["ログイン", "新規登録"])
+    
+    with tab1:
+        login_email = st.text_input("メールアドレス", key="login_email")
+        login_password = st.text_input("パスワード", type="password", key="login_password")
+        if st.button("ログイン"):
+            if login_email and login_password:
+                try:
+                    response = supabase.auth.sign_in_with_password({"email": login_email, "password": login_password})
+                    st.session_state.user = response.user
+                    res = supabase.table('used_receipts').select("*").eq('user_email', response.user.email).execute()
+                    if len(res.data) > 0:
+                        st.session_state.is_premium = True
+                    st.rerun()
+                except Exception as e:
+                    st.sidebar.error(f"ログインエラー: {e}")
+            else:
+                st.sidebar.warning("メールアドレスとパスワードを入力してください。")
+                
+    with tab2:
+        signup_email = st.text_input("メールアドレス", key="signup_email")
+        signup_password = st.text_input("パスワード", type="password", key="signup_password")
+        if st.button("新規登録"):
+            if signup_email and signup_password:
+                try:
+                    response = supabase.auth.sign_up({"email": signup_email, "password": signup_password})
+                    st.session_state.user = response.user
+                    st.sidebar.success("サインアップ成功！")
+                    st.rerun()
+                except Exception as e:
+                    st.sidebar.error(f"サインアップエラー: {e}")
+            else:
+                st.sidebar.warning("メールアドレスとパスワードを入力してください。")
+    st.sidebar.markdown("---")
+else:
+    st.sidebar.write(f"ログイン中: {st.session_state.user.email}")
+    if st.session_state.is_premium:
+        st.sidebar.success("👑 プレミアム会員")
+        
+    if st.sidebar.button("ログアウト"):
+        try:
+            supabase.auth.sign_out()
+        except Exception:
+            pass
+        st.session_state.user = None
+        st.session_state.is_premium = False
+        st.rerun()
+    st.sidebar.markdown("---")
 
 st.title("🛡️ 資格スコア & シナジー可視化ダッシュボード")
-st.markdown("あなたが取得した資格を組み合わせて、**総スコア**と**称号（シナジー）**を獲得しましょう！")
+st.markdown("あなたが取得した資格を組み合わせて、**潜在戦闘力（レア度）**と**称号（シナジー）**を獲得しましょう！")
 st.caption("※当ダッシュボードはアフィリエイトプログラムによる収益化を行っており、一部のリンクにはプロモーション（PR）が含まれます。")
+
+# ----- 👑 プレミアム機能解放セクション -----
+if not st.session_state.is_premium:
+    with st.expander("👑 プレミアム機能の解放（称号・戦闘力ランキングの完全公開）", expanded=True):
+        st.markdown(
+            """
+            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #e9ecef;">
+                <p style="font-weight: bold; color: #333;">【プレミアム機能の解放手順】</p>
+                <ol>
+                    <li><a href="[https://note.com/あなたのnoteのURL](https://note.com/あなたのnoteのURL)" target="_blank">こちらのnote記事（300円）</a>を購入します。</li>
+                    <li>購入完了画面、または届いたメールのスクリーンショットを撮影します。</li>
+                    <li>下の枠に画像をアップロードしてください。AIが自動判定し、即座にアカウントをアップグレードします！</li>
+                </ol>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        uploaded_file = st.file_uploader("📸 noteのレシート画像をアップロード", type=["png", "jpg", "jpeg"])
+
+        if uploaded_file is not None:
+            image = Image.open(uploaded_file)
+            st.image(image, caption="アップロードされた画像", use_container_width=True)
+
+            if st.button("AIでレシートを判定して解放する！", type="primary"):
+                if st.session_state.user is None:
+                    st.error("⚠️ 先にサイドバーからログイン（または無料登録）を完了させてください。")
+                else:
+                    with st.spinner("🤖 AIがレシートを解析しています...（数秒かかります）"):
+                        receipt_data = parse_receipt_with_gemini(image)
+
+                        if receipt_data.get("is_valid_receipt") and receipt_data.get("price") == 300:
+                            order_num = receipt_data.get("order_number")
+
+                            if not order_num:
+                                st.error("❌ 注文番号が読み取れませんでした。鮮明な画像をアップロードしてください。")
+                            else:
+                                res = supabase.table('used_receipts').select("*").eq('order_number', order_num).execute()
+
+                                if len(res.data) > 0:
+                                    st.error("⚠️ この注文番号のレシートは、すでに使用されています。")
+                                else:
+                                    supabase.table('used_receipts').insert({
+                                        "order_number": order_num,
+                                        "user_email": st.session_state.user.email
+                                    }).execute()
+
+                                    st.session_state.is_premium = True
+                                    st.balloons()
+                                    st.success("✅ レシートが承認されました！あなたのアカウントはプレミアム会員にアップグレードされました！")
+                                    st.rerun()
+                        else:
+                            st.error("❌ 有効なnoteのレシート（300円）が確認できませんでした。")
+    st.markdown("---")
 
 # 1. データの読み込み
 with get_db_session() as session:
-    # ユーザーシミュレーション
     user = session.query(User).filter_by(username="test_user").first()
     if not user:
-        st.error("test_user が見つかりませんでした。`seed.py` を実行して初期データを作成してください。")
+        st.error("test_user が見つかりませんでした。`seed.py` を実行してください。")
         st.stop()
         
-    st.sidebar.markdown(f"**ログイン中**: 👤 {user.username}")
-    st.sidebar.markdown("---")
-    
-    # 資格マスターとシナジーマスターの取得
     all_qualifications = session.query(Qualification).all()
     all_synergies = session.query(Synergy).all()
     
-    # ここで先にシナジーのリレーションを読み込んでおく（DetachedInstanceError対策）
     for syn in all_synergies:
         _ = syn.requirements
     
-    # 資格選択用の辞書作成（カテゴリごと、かつTier順で探しやすくする）
     all_qualifications.sort(key=lambda q: (q.category, q.tier, q.name))
     qual_options = {q.name: q for q in all_qualifications}
     
-    # 初期状態として選択済み資格のセットを session_state に保存する
     if "selected_quals_set" not in st.session_state:
         st.session_state.selected_quals_set = set()
 
-    # チェックボックス操作時のコールバック関数
     def toggle_qual(qual_name):
-        # 現在の session_state の checkbox 状態を取得
         is_checked = st.session_state[f"chk_{qual_name}"]
         if is_checked:
             st.session_state.selected_quals_set.add(qual_name)
         else:
             st.session_state.selected_quals_set.discard(qual_name)
 
-    # 選択解除時の関数
     def remove_qual(qual_name):
         st.session_state.selected_quals_set.discard(qual_name)
 
     st.sidebar.header("🎯 選択中の資格リスト")
     
-    # 選択されている資格がある場合はバッジ風（ボタン）で表示し、クリックで解除可能にする
     if st.session_state.selected_quals_set:
         for q_name in sorted(st.session_state.selected_quals_set):
             st.sidebar.button(f"❌ {q_name}", key=f"rm_{q_name}", on_click=remove_qual, args=(q_name,), help="クリックで選択を解除")
     else:
-        st.sidebar.info("取得済みの資格がまだありません。下のリストから探して追加しましょう！")
+        st.sidebar.info("取得済みの資格がまだありません。下のリストから探しましょう！")
 
     st.sidebar.markdown("---")
-    
-    # 検索機能とカテゴリタブを配置
     st.sidebar.subheader("🔍 資格を探す・追加する")
+    
+    if not st.session_state.is_premium:
+        if len(st.session_state.selected_quals_set) >= 1:
+            st.sidebar.warning("🔒 2つ目以上の資格登録・シナジー解析はプレミアム限定です。")
+        else:
+            st.sidebar.info("💡 無料版では資格を1つだけ登録できます。")
+
     search_query = st.sidebar.text_input("資格名で検索...", placeholder="例: ITパスポート")
 
-    # 検索クエリが存在する場合は、検索結果のリストだけを表示
     if search_query:
         st.sidebar.markdown("**検索結果**")
         results = [q for q_name, q in qual_options.items() if search_query.lower() in q_name.lower()]
@@ -96,75 +341,62 @@ with get_db_session() as session:
             st.sidebar.write("一致する資格がありません")
         else:
             for q in results:
+                disable_checkbox = (not st.session_state.is_premium) and (len(st.session_state.selected_quals_set) >= 1) and (q.name not in st.session_state.selected_quals_set)
                 st.sidebar.checkbox(
                     q.name,
                     value=(q.name in st.session_state.selected_quals_set),
                     key=f"chk_{q.name}",
                     on_change=toggle_qual,
-                    args=(q.name,)
+                    args=(q.name,),
+                    disabled=disable_checkbox
                 )
-    # 検索クエリがない場合は、カテゴリごとにタブ分けして一覧表示
     else:
-        # カテゴリの一意なリストを取得
         categories = []
         for q in all_qualifications:
             if q.category not in categories:
                 categories.append(q.category)
                 
-        # st.tabs を使用
         tabs = st.sidebar.tabs(categories)
         for i, cat in enumerate(categories):
             with tabs[i]:
-                # 各カテゴリに属する資格をリスト表示
                 for q in all_qualifications:
                     if q.category == cat:
+                        disable_checkbox = (not st.session_state.is_premium) and (len(st.session_state.selected_quals_set) >= 1) and (q.name not in st.session_state.selected_quals_set)
                         st.checkbox(
                             q.name,
                             value=(q.name in st.session_state.selected_quals_set),
                             key=f"chk_{q.name}",
                             on_change=toggle_qual,
-                            args=(q.name,)
+                            args=(q.name,),
+                            disabled=disable_checkbox
                         )
     
     st.sidebar.markdown("---")
-    if st.sidebar.button("💳 資格の追加審査をリクエストする"):
-        request_qualification_dialog()
+    st.sidebar.info("💡 リストにない資格の追加リクエストは、公式X(Twitter)のDM等でいつでもお待ちしています！")
 
-    # 計算など後続処理のために選択された資格のリストを再構築
     selected_quals = [qual_options[name] for name in st.session_state.selected_quals_set if name in qual_options]
     selected_qual_ids = [q.id for q in selected_quals]
     selected_categories = [q.category for q in selected_quals]
 
-# 2. スコア計算とシナジー判定ロジック
+# 2. 基礎スコア・シナジー・潜在戦闘力（レア度）の計算
 base_score_total = sum(q.base_score for q in selected_quals)
 bonus_score_total = 0
 active_titles = []
 
-# シナジーの判定
 for syn in all_synergies:
     requirements = syn.requirements
-
     if not requirements:
         continue
     
-    # 対象のシナジーが要求する条件の判定
     synergy_achieved = True
+    categories_available = list(selected_categories)
     
-    categories_available = list(selected_categories) # 重複消費制御用（必要な場合）
-    
-    # AND条件としてすべてのRequirementを満たすかチェック
     for req in requirements:
         req_met = False
-        
-        if req.required_qualification_id:
-            # 特定の資格IDを要求する場合
-            if req.required_qualification_id in selected_qual_ids:
-                req_met = True
-        elif req.required_category:
-            # 特定のカテゴリを要求する場合
-            if req.required_category in categories_available:
-                req_met = True
-                # 同カテゴリの資格を複数回使い回せるか（今回は簡易的に消費フラグにしない仕様）
+        if req.required_qualification_id and req.required_qualification_id in selected_qual_ids:
+            req_met = True
+        elif req.required_category and req.required_category in categories_available:
+            req_met = True
         
         if not req_met:
             synergy_achieved = False
@@ -174,20 +406,48 @@ for syn in all_synergies:
         bonus_score_total += syn.bonus_score
         active_titles.append(syn.title_name)
 
-# 最終スコア
+# --- 🔥 新規実装：潜在戦闘力（レア度）の計算ロジック ---
+category_rarity_sums = {}
+for q in selected_quals:
+    cat = q.category
+    r_score = rarity_map.get(q.name, 50) 
+    if cat not in category_rarity_sums:
+        category_rarity_sums[cat] = 0
+    category_rarity_sums[cat] += r_score
+
+combat_power = 0
+if category_rarity_sums:
+    combat_power = 1
+    for cat, r_sum in category_rarity_sums.items():
+        combat_power *= r_sum
+# --------------------------------------------------------
+
 total_score = base_score_total + bonus_score_total
 current_title = ", ".join(active_titles) if active_titles else "ルーキー"
 
-# 3. ダッシュボードへのスコア表示
-col1, col2, col3 = st.columns(3)
-col1.metric("🌟 総合スコア", f"{total_score} pt", f"(基本: {base_score_total} + ボーナス: {bonus_score_total})")
-col2.metric("👑 現在の称号", current_title)
-col3.metric("🎓 選択資格数", f"{len(selected_quals)} 個")
+# プレミアム制御
+if st.session_state.is_premium:
+    display_title = current_title
+    display_total_score = f"{total_score} pt"
+    display_bonus_detail = f"(基本: {base_score_total} + ボーナス: {bonus_score_total})"
+    display_combat_power = f"{combat_power:,}"
+    tweet_text = f"私の潜在戦闘力（レア度）は {combat_power:,} ！！称号を獲得しました！🛡️\n異分野の資格を掛け合わせて、自分の市場価値を測ろう！\n#資格レーダー #戦闘力 #スキルスコア"
+else:
+    display_title = "🔒 プレミアム限定"
+    display_total_score = f"{base_score_total} pt + 🔒"
+    display_bonus_detail = f"(基本: {base_score_total} + ボーナス: 🔒プレミアム限定)"
+    display_combat_power = "🔒 測定不能"
+    tweet_text = f"私の潜在戦闘力（レア度）は 🔒 測定不能！異分野の資格を掛け合わせて市場価値を測ろう！\n#資格レーダー #戦闘力 #スキルスコア"
 
-# X (Twitter) で結果をシェアするボタン
-tweet_text = f"私のビジネス戦闘力は {total_score} pt！称号【{current_title}】を獲得しました！🛡️\n異分野の資格を掛け合わせて、自分の市場価値を測ろう！\n#資格レーダー #スキルスコア"
-intent_url = f"https://twitter.com/intent/tweet?text={quote(tweet_text)}"
-st.link_button("𝕏 で結果をシェアする", intent_url, type="primary")
+# 3. ダッシュボードへのスコア表示
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("🌟 総合スコア", display_total_score, display_bonus_detail)
+col2.metric("👑 現在の称号", display_title)
+col3.metric("🔥 潜在戦闘力", display_combat_power, "限界突破！" if combat_power > 50000 and st.session_state.is_premium else "")
+col4.metric("🎓 選択資格数", f"{len(selected_quals)} 個")
+
+intent_url = f"[https://twitter.com/intent/tweet?text=](https://twitter.com/intent/tweet?text=){quote(tweet_text)}"
+st.link_button("𝕏 で戦闘力をシェアする", intent_url, type="primary")
 
 st.markdown("---")
 
@@ -197,7 +457,6 @@ col_left, col_right = st.columns([1.5, 1])
 with col_left:
     st.subheader("📊 スキルカテゴリ別 レーダーチャート")
     if selected_quals:
-        # カテゴリごとにスコアを集計し、全カテゴリ（9軸）を表示枠に含める
         category_scores_dict = {}
         for q in all_qualifications: 
             if q.category not in category_scores_dict:
@@ -206,27 +465,19 @@ with col_left:
         for q in selected_quals:
             category_scores_dict[q.category] += q.base_score
             
-        # Plotly用データフレーム作成
         df_radar = pd.DataFrame(dict(
             category=list(category_scores_dict.keys()),
             score=list(category_scores_dict.values())
         ))
         
         fig = px.line_polar(
-            df_radar, 
-            r='score', 
-            theta='category', 
-            line_close=True,
-            markers=True,
-            template="plotly_dark"
+            df_radar, r='score', theta='category', line_close=True, markers=True, template="plotly_dark"
         )
         fig.update_traces(fill='toself')
         fig.update_layout(
             polar=dict(radialaxis=dict(visible=True, range=[0, max(100, df_radar['score'].max() + 20)])),
-            showlegend=False,
-            margin=dict(l=40, r=40, t=20, b=20)
+            showlegend=False, margin=dict(l=40, r=40, t=20, b=20)
         )
-        
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("👈 サイドバーから資格を選択すると、レーダーチャートが表示されます。")
@@ -241,7 +492,7 @@ with col_right:
         st.dataframe(df_quals, use_container_width=True, hide_index=True)
         
         if active_titles:
-            st.success("🎉 **発動中のシナジー**\n\n" + "\n".join([f"- **{t}**" for t in active_titles]))
+            st.success("🎉 **発動中のシナジー**\n\n" + "\n".join([f"- **{t if st.session_state.is_premium else '🔒 プレミアム限定'}**" for t in active_titles]))
     else:
         st.write("選択された資格がありません。")
 
@@ -250,82 +501,60 @@ st.markdown("---")
 # 5. アフィリエイトレコメンド機能（次の目標）
 st.subheader("🎯 次の目標（おすすめの資格）")
 
-# Amazon検索で確実に資格本がヒットする汎用キーワード辞書
 category_amazon_keyword = {
-    "IT・データ": "IT 資格",
-    "経営・ビジネス": "ビジネス 資格",
-    "法務・労務・知財": "法務 労務 資格",
-    "財務・金融": "財務 金融 資格",
-    "語学・グローバル": "語学 英語 資格",
-    "機械・電気": "機械 電気 資格",
-    "機械・製造": "機械 資格",  # 「機械製造」ではなく「機械 資格」に変換
-    "土木・建築・施工": "建築 施工管理 資格",
-    "電気・通信・エネ": "電気 通信 資格",
+    "IT・データ": "IT 資格", "経営・ビジネス": "ビジネス 資格", "法務・労務・知財": "法務 労務 資格",
+    "財務・金融": "財務 金融 資格", "語学・グローバル": "語学 英語 資格", "機械・電気": "機械 電気 資格",
+    "機械・製造": "機械 資格", "土木・建築・施工": "建築 施工管理 資格", "電気・通信・エネ": "電気 通信 資格",
     "安全・環境・品質": "安全衛生 品質 資格"
 }
 
 reach_synergies = []
-
-# すでに発動しているシナジー以外からリーチ状態を探す
 for syn in all_synergies:
     if syn.title_name in active_titles:
         continue
-    
     requirements = syn.requirements
     if not requirements:
         continue
-        
     met_count = 0
     missing_reqs = []
-    
     for req in requirements:
         req_met = False
         if req.required_qualification_id and req.required_qualification_id in selected_qual_ids:
             req_met = True
         elif req.required_category and req.required_category in selected_categories:
             req_met = True
-            
         if req_met:
             met_count += 1
         else:
             missing_reqs.append(req)
             
-    # 条件を1つ以上満たしており、かつ足りない条件がある場合は「リーチ」とみなす
-    # （※要件が2つ以上あるシナジーに対して「あと1つ」とするため、今回は単純化して「足りないものが存在し、かつ1つ以上は満たしている」とする）
     if met_count > 0 and len(missing_reqs) > 0:
         reach_synergies.append((syn, missing_reqs))
 
 if reach_synergies:
     for syn, missing_reqs in reach_synergies:
-        # とりあえず最初の足りない条件を表示メッセージに使う
         first_missing = missing_reqs[0]
-        missing_text = ""
+        display_syn_title = syn.title_name if st.session_state.is_premium else "🔒プレミアム限定"
         
         if first_missing.required_qualification_id:
-            # 資格名を取得
             quali = next((q for q in all_qualifications if q.id == first_missing.required_qualification_id), None)
             missing_text = f"【{quali.name}】" if quali else "特定の資格"
-            st.info(f"あと{missing_text}を取得すれば、称号『{syn.title_name} (+{syn.bonus_score}pt)』が発動します！")
+            st.info(f"あと{missing_text}を取得すれば、称号『{display_syn_title} (+{syn.bonus_score}pt)』が発動します！")
             
             if quali:
-                # パターンA: HTMLタグ型 (ASPバナー等)
                 if quali.affiliate_link and quali.affiliate_link.startswith("<"):
                     st.markdown(quali.affiliate_link, unsafe_allow_html=True)
-                # パターンB: URL型
                 elif quali.affiliate_link and quali.affiliate_link.startswith("http"):
                     st.link_button(f"[PR] {quali.name} のおすすめ講座をチェック", quali.affiliate_link)
-                # パターンC: 未登録 (Amazon検索URL自動生成)
                 else:
-                    amazon_url = f"https://www.amazon.co.jp/s?k={quote(quali.name)}+資格+テキスト&tag=skillradar-22"
+                    amazon_url = f"[https://www.amazon.co.jp/s?k=](https://www.amazon.co.jp/s?k=){quote(quali.name)}+資格+テキスト&tag=skillradar-22"
                     st.link_button(f"[PR] {quali.name} の公式テキスト・過去問を探す", amazon_url)
 
         elif first_missing.required_category:
             missing_text = f"【{first_missing.required_category}】領域の資格"
-            st.info(f"あと{missing_text}を取得すれば、称号『{syn.title_name} (+{syn.bonus_score}pt)』が発動します！")
+            st.info(f"あと{missing_text}を取得すれば、称号『{display_syn_title} (+{syn.bonus_score}pt)』が発動します！")
             
-            # おすすめの資格（同じカテゴリでアフィリエイトリンクがあるもの）を探す
             recommended_qual = next((q for q in all_qualifications if q.category == first_missing.required_category and q.affiliate_link), None)
-            
             if recommended_qual:
                 st.write(f"おすすめ: **{recommended_qual.name}**")
                 if recommended_qual.affiliate_link.startswith("<"):
@@ -333,65 +562,76 @@ if reach_synergies:
                 elif recommended_qual.affiliate_link.startswith("http"):
                     st.link_button(f"[PR] {recommended_qual.name} のおすすめ講座をチェック", recommended_qual.affiliate_link)
             else:
-                # カテゴリ不足の場合 (Amazon検索URL自動生成)
-                # 辞書からキーワードを取得。辞書にない未知のカテゴリの場合は「・」を空白にして「 資格」を末尾に付与する安全設計。
                 base_keyword = category_amazon_keyword.get(first_missing.required_category, first_missing.required_category.replace("・", " ") + " 資格")
-                
-                # 最終的な検索URL（例：「機械 資格 テキスト」となるように結合）
-                amazon_url = f"https://www.amazon.co.jp/s?k={quote(base_keyword)}+テキスト&tag=skillradar-22"
+                amazon_url = f"[https://www.amazon.co.jp/s?k=](https://www.amazon.co.jp/s?k=){quote(base_keyword)}+テキスト&tag=skillradar-22"
                 st.link_button(f"[PR] 【{first_missing.required_category}】領域の資格テキストを探す", amazon_url)
-
 else:
     st.write("さらに別のカテゴリの資格を取得して、新たなシナジーを見つけましょう！")
 
 st.markdown("---")
 
-# 6. バーチャルランキングボード（競争心を刺激）
-st.subheader("🏆 全国ランキング (仮想)")
+# 6. バーチャルランキングボード
+st.subheader("🏆 全国戦闘力ランキング (仮想)")
 
 dummy_rivals = [
-    {"ユーザー": "資格マニア太郎", "称号": "重厚長大DXマスター", "スコア": 280},
-    {"ユーザー": "プラント神", "称号": "プラント・エネルギー戦略家", "スコア": 250},
-    {"ユーザー": "ビジネスの鬼", "称号": "AI主導型・経営参謀", "スコア": 180},
-    {"ユーザー": "データサイエンス職人", "称号": "データサイエンティスト", "スコア": 150},
-    {"ユーザー": "駆け出しエンジニア", "称号": "DX推進アソシエイト", "スコア": 80},
-    {"ユーザー": "ITパスポート親方", "称号": "ルーキー", "スコア": 20},
+    {"ユーザー": "資格マニア太郎", "称号": "重厚長大DXマスター", "戦闘力": 285400000},
+    {"ユーザー": "プラント神", "称号": "プラント・エネルギー戦略家", "戦闘力": 15600000},
+    {"ユーザー": "ビジネスの鬼", "称号": "AI主導型・経営参謀", "戦闘力": 8200000},
+    {"ユーザー": "データサイエンス職人", "称号": "データサイエンティスト", "戦闘力": 520000},
+    {"ユーザー": "駆け出しエンジニア", "称号": "DX推進アソシエイト", "戦闘力": 12800},
+    {"ユーザー": "ITパスポート親方", "称号": "ルーキー", "戦闘力": 46},
 ]
 
-# 現在のユーザーを追加
 ranking_data = dummy_rivals.copy()
-ranking_data.append({
-    "ユーザー": f"🟢 あなた ({user.username})",
-    "称号": current_title,
-    "スコア": total_score
-})
 
-# スコア順に降順ソート
-ranking_data_sorted = sorted(ranking_data, key=lambda x: x["スコア"], reverse=True)
+if st.session_state.is_premium:
+    ranking_data.append({
+        "ユーザー": f"🟢 あなた",
+        "称号": display_title,
+        "戦闘力": combat_power
+    })
+    ranking_data_sorted = sorted(ranking_data, key=lambda x: x["戦闘力"], reverse=True)
+    for r in ranking_data_sorted:
+        r["戦闘力"] = f"{r['戦闘力']:,}"
+        
+    df_ranking = pd.DataFrame(ranking_data_sorted)
+    df_ranking.index = [f"{i+1}位" for i in range(len(df_ranking))]
+    df_ranking.index.name = "順位"
+else:
+    ranking_data_sorted = sorted(ranking_data, key=lambda x: x["戦闘力"], reverse=True)
+    for i in range(len(ranking_data_sorted)):
+        if i >= 3:
+            ranking_data_sorted[i]["ユーザー"] = "🔒 プレミアム限定"
+            ranking_data_sorted[i]["称号"] = "🔒"
+            ranking_data_sorted[i]["戦闘力"] = "🔒"
+        else:
+            ranking_data_sorted[i]["戦闘力"] = f"{ranking_data_sorted[i]['戦闘力']:,}"
+            
+    df_ranking = pd.DataFrame(ranking_data_sorted)
+    df_ranking.index = [f"{i+1}位" for i in range(len(df_ranking))]
+    df_ranking.index.name = "順位"
+    
+    user_row = pd.DataFrame({
+        "ユーザー": ["🟢 あなた"],
+        "称号": ["🔒 プレミアム限定"],
+        "戦闘力": ["🔒"]
+    }, index=["???位"])
+    df_ranking = pd.concat([df_ranking, user_row])
 
-# DataFrame化して順位をインデックスにする
-df_ranking = pd.DataFrame(ranking_data_sorted)
-df_ranking.index = [f"{i+1}位" for i in range(len(df_ranking))]
-df_ranking.index.name = "順位"
-
-# 表として出力
 st.dataframe(df_ranking, use_container_width=True)
-
 st.caption("Amazonのアソシエイトとして、当メディアは適格販売により収入を得ています。")
 
 # キャリア相談セクション
 st.markdown("---")
 st.subheader("🚀 診断結果を活かしてキャリアの可能性を探る")
 
-# Neuro Dive テキストリンク（広告ブロック回避とクリック率向上のためのスタイリング）
 neuro_dive_html = '''
 <div style="text-align: center; margin: 20px 0; padding: 15px; background-color: #f0f7ff; border: 1px solid #cce5ff; border-radius: 8px;">
     <p style="font-weight: bold; color: #004085; margin-bottom: 10px; font-size: 16px;">
         ＼ AIやデータサイエンス領域で、さらに市場価値を高めるなら ／
     </p>
     <div style="font-size: 18px; font-weight: bold;">
-        <a href="https://px.a8.net/svt/ejp?a8mat=4AZD87+4ASRLU+47GS+HVFKY" target="_blank" rel="nofollow" style="color: #0056b3; text-decoration: underline;">AIやデータサイエンスが学べるIT特化の就労移行支援【Neuro Dive】</a>
-        <img border="0" width="1" height="1" src="https://www12.a8.net/0.gif?a8mat=4AZD87+4ASRLU+47GS+HVFKY" alt="" style="display:none;">
+        <a href="[https://px.a8.net/svt/ejp?a8mat=4AZD87+4ASRLU+47GS+HVFKY](https://px.a8.net/svt/ejp?a8mat=4AZD87+4ASRLU+47GS+HVFKY)" target="_blank" rel="nofollow" style="color: #0056b3; text-decoration: underline;">AIやデータサイエンスが学べるIT特化の就労移行支援【Neuro Dive】</a>
     </div>
 </div>
 '''
@@ -400,7 +640,6 @@ st.markdown(neuro_dive_html, unsafe_allow_html=True)
 # 学習・開発環境（PC）セクション
 st.markdown("---")
 st.subheader("学習・開発環境のアップデート")
-
 pc_ad_html = '''
 <div style="padding: 20px; background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; margin-bottom: 30px;">
     <p style="text-align: center; font-weight: bold; color: #495057; margin-bottom: 20px; font-size: 15px;">
@@ -408,23 +647,16 @@ pc_ad_html = '''
     </p>
     <div style="display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 20px;">
         <div style="text-align: center;">
-            <a href="https://click.linksynergy.com/fs-bin/click?id=yw57HLgzpBw&offerid=252926.485&type=4&subid=0" target="_blank" rel="nofollow"><img alt="HP Directplus -HP公式オンラインストア-" border="0" src="https://jp.ext.hp.com/content/dam/jp-ext-hp-com/jp/ja/ec/directplus/aff_banner/AFF_Point_468x60.jpg" style="max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></a><img border="0" width="1" height="1" src="https://ad.linksynergy.com/fs-bin/show?id=yw57HLgzpBw&bids=252926.485&type=4&subid=0" style="display:none;">
+            <a href="[https://click.linksynergy.com/fs-bin/click?id=yw57HLgzpBw&offerid=252926.485&type=4&subid=0](https://click.linksynergy.com/fs-bin/click?id=yw57HLgzpBw&offerid=252926.485&type=4&subid=0)" target="_blank" rel="nofollow"><img alt="HP Directplus -HP公式オンラインストア-" border="0" src="[https://jp.ext.hp.com/content/dam/jp-ext-hp-com/jp/ja/ec/directplus/aff_banner/AFF_Point_468x60.jpg](https://jp.ext.hp.com/content/dam/jp-ext-hp-com/jp/ja/ec/directplus/aff_banner/AFF_Point_468x60.jpg)" style="max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></a>
         </div>
         <div style="text-align: center;">
-            <a href="https://click.linksynergy.com/fs-bin/click?id=yw57HLgzpBw&offerid=39250.10000123&type=4&subid=0" target="_blank" rel="nofollow"><img alt="デル株式会社" border="0" src="https://i.dell.com/images/jp/banners/banners_l/campaign1_400x100.gif" style="max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></a><img border="0" width="1" height="1" src="https://ad.linksynergy.com/fs-bin/show?id=yw57HLgzpBw&bids=39250.10000123&type=4&subid=0" style="display:none;">
-        </div>
-        <div style="text-align: center;">
-            <a href="https://click.linksynergy.com/fs-bin/click?id=yw57HLgzpBw&offerid=183092.10001122&type=4&subid=0" target="_blank" rel="nofollow"><img alt="富士通 FMV Note P" border="0" src="https://www.fmv.com/on/demandware.static/-/Library-Sites-FCCLSharedLibrary/default/other_contents/ls/banner/ph_320_50.gif" style="max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></a><img border="0" width="1" height="1" src="https://ad.linksynergy.com/fs-bin/show?id=yw57HLgzpBw&bids=183092.10001122&type=4&subid=0" style="display:none;">
-        </div>
-        <div style="text-align: center;">
-            <a href="https://linksynergy.jrs5.com/fs-bin/click?id=yw57HLgzpBw&offerid=233988.10000289&type=4&subid=0" target="_blank" rel="nofollow"><img alt="Dynabook Direct" border="0" src="https://dynabook.com/direct/pc-static/tieup/linkshare/outlet_120_60.gif" style="max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></a><img border="0" width="1" height="1" src="https://ad.linksynergy.com/fs-bin/show?id=yw57HLgzpBw&bids=233988.10000289&type=4&subid=0" style="display:none;">
+            <a href="[https://click.linksynergy.com/fs-bin/click?id=yw57HLgzpBw&offerid=39250.10000123&type=4&subid=0](https://click.linksynergy.com/fs-bin/click?id=yw57HLgzpBw&offerid=39250.10000123&type=4&subid=0)" target="_blank" rel="nofollow"><img alt="デル株式会社" border="0" src="[https://i.dell.com/images/jp/banners/banners_l/campaign1_400x100.gif](https://i.dell.com/images/jp/banners/banners_l/campaign1_400x100.gif)" style="max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></a>
         </div>
     </div>
 </div>
 '''
 st.markdown(pc_ad_html, unsafe_allow_html=True)
 
-# 実装の補足情報
 with st.expander("🛠️ システムの仕組み (デバッグ情報)"):
     st.write("利用可能な全シナジー条件:")
     for syn in all_synergies:
