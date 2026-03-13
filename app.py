@@ -284,6 +284,7 @@ if not st.session_state.is_premium:
                                     st.rerun()
                         else:
                             st.error("❌ 有効なnoteのレシート（300円）が確認できませんでした。")
+                            st.info("💡 何度試してもエラーになってしまう場合は、お手数ですが[公式X（@SkillRadarDev）](https://twitter.com/SkillRadarDev)のDMにレシート画像をお送りください。運営が手動で解放いたします！")
     st.markdown("---")
 
 # 1. データの読み込み
