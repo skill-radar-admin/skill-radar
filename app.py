@@ -137,6 +137,23 @@ rarity_map = {
     "宅地建物取引士": 57
 }
 
+# ----- 戦闘力の巨大数値フォーマット関数 (K, M, B, T, Qa, Qi) -----
+def format_combat_power(num):
+    if num >= 1e18:
+        return f"{num / 1e18:.2f} Qi" # Quintillion (百京)
+    elif num >= 1e15:
+        return f"{num / 1e15:.2f} Qa" # Quadrillion (千兆)
+    elif num >= 1e12:
+        return f"{num / 1e12:.2f} T"  # Trillion (兆)
+    elif num >= 1e9:
+        return f"{num / 1e9:.2f} B"   # Billion (十億)
+    elif num >= 1e6:
+        return f"{num / 1e6:.2f} M"   # Million (百万)
+    elif num >= 1e3:
+        return f"{num / 1e3:.2f} K"   # Thousand (千)
+    else:
+        return f"{num:,}"
+
 # ----- バッジのランク判定関数 -----
 def get_badge_info(combat_power):
     if combat_power <= 5000:
@@ -167,24 +184,30 @@ def generate_badge_image(combat_power, qual_count, synergy_count, badge_name, us
     img = Image.new('RGB', (800, 450), color=(15, 23, 42))
     draw = ImageDraw.Draw(img)
     
-    # OSごとの日本語フォントのフォールバック設定
-    font_paths = [
-        "/System/Library/Fonts/ヒラギノ角ゴシック W4.ttc", # Mac標準
-        "/System/Library/Fonts/Hiragino Sans GB.ttc",
-        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
-        "C:\\Windows\\Fonts\\msgothic.ttc", # Windows
-        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc" # Linux/デプロイ環境
-    ]
-    font_large = font_medium = font_small = ImageFont.load_default()
-    for path in font_paths:
-        if os.path.exists(path):
-            try:
-                font_large = ImageFont.truetype(path, 50)
-                font_medium = ImageFont.truetype(path, 32)
-                font_small = ImageFont.truetype(path, 18)
-                break
-            except:
-                continue
+    # OS依存をなくすため、同梱した NotoSansJP-Regular.ttf を最優先で読み込む
+    try:
+        font_large = ImageFont.truetype("NotoSansJP-Regular.ttf", 50)
+        font_medium = ImageFont.truetype("NotoSansJP-Regular.ttf", 32)
+        font_small = ImageFont.truetype("NotoSansJP-Regular.ttf", 18)
+    except IOError:
+        # 万が一同梱フォントがない場合のOS標準フォールバック
+        font_paths = [
+            "/System/Library/Fonts/ヒラギノ角ゴシック W4.ttc",
+            "/System/Library/Fonts/Hiragino Sans GB.ttc",
+            "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+            "C:\\Windows\\Fonts\\msgothic.ttc",
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
+        ]
+        font_large = font_medium = font_small = ImageFont.load_default()
+        for path in font_paths:
+            if os.path.exists(path):
+                try:
+                    font_large = ImageFont.truetype(path, 50)
+                    font_medium = ImageFont.truetype(path, 32)
+                    font_small = ImageFont.truetype(path, 18)
+                    break
+                except:
+                    continue
 
     # 外枠の描画
     draw.rectangle([(20, 20), (780, 430)], outline=(56, 189, 248), width=3)
@@ -195,11 +218,14 @@ def generate_badge_image(combat_power, qual_count, synergy_count, badge_name, us
     # 英語によるシンプルで枠に収まるステータス表記
     stats_text = f"LICENSES: {qual_count}   |   SYNERGIES: {synergy_count}"
     
+    # 数値のK, M, B, T略称フォーマット適用（はみ出し防止）
+    display_cp = f"{format_combat_power(combat_power)} pt"
+
     # 中央揃えでテキストを描画
     draw_centered_text(draw, 50, "Skill Radar Official Certificate", font_small, (148, 163, 184))
     draw_centered_text(draw, 110, f"RANK : {rank_clean}", font_large, (250, 204, 21)) # 黄色
     draw_centered_text(draw, 190, stats_text, font_medium, (248, 250, 252)) # 白
-    draw_centered_text(draw, 260, f"{combat_power:,} pt", font_large, (56, 189, 248)) # シアン
+    draw_centered_text(draw, 260, display_cp, font_large, (56, 189, 248)) # シアン
     
     # 日付と偽造防止シリアルナンバーの生成
     date_str = datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
@@ -267,7 +293,7 @@ if "user" not in st.session_state:
 if "is_premium" not in st.session_state:
     st.session_state.is_premium = False
 
-# ログイン状態の確認とプレミアム判定（本番用：アドミンコードは削除）
+# ログイン状態の確認とプレミアム判定
 if st.session_state.user is None:
     tab1, tab2 = st.sidebar.tabs(["ログイン", "新規登録"])
     
@@ -281,7 +307,7 @@ if st.session_state.user is None:
                     response = supabase.auth.sign_in_with_password({"email": login_email, "password": login_password})
                     st.session_state.user = response.user
                     
-                    # ログイン時にプレミアム会員か（過去にレシート登録済みか）チェック
+                    # ログイン時にプレミアム会員かチェック
                     res = supabase.table('used_receipts').select("*").eq('user_email', response.user.email).execute()
                     if len(res.data) > 0:
                         st.session_state.is_premium = True
@@ -300,6 +326,12 @@ if st.session_state.user is None:
                 try:
                     response = supabase.auth.sign_up({"email": signup_email, "password": signup_password})
                     st.session_state.user = response.user
+                    
+                    # 新規登録直後にもレシート登録済みか自動チェックして即時反映させる
+                    res = supabase.table('used_receipts').select("*").eq('user_email', response.user.email).execute()
+                    if len(res.data) > 0:
+                        st.session_state.is_premium = True
+
                     st.sidebar.success("サインアップ成功！")
                     st.rerun()
                 except Exception as e:
@@ -334,7 +366,7 @@ if not st.session_state.is_premium:
             <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #e9ecef;">
                 <p style="font-weight: bold; color: #333;">【プレミアム機能の解放手順】</p>
                 <ol>
-                    <li><a href="https://note.com/あなたのnoteのURL" target="_blank">こちらのnote記事（300円）</a>を購入します。</li>
+                    <li><a href="https://note.com/bold_snake7371/n/ncca37cc824ae" target="_blank">こちらのnote記事（300円）</a>を購入します。</li>
                     <li>購入完了画面、または届いたメールのスクリーンショットを撮影します。</li>
                     <li>下の枠に画像をアップロードしてください。AIが自動判定し、即座にアカウントをアップグレードします！</li>
                 </ol>
@@ -391,8 +423,20 @@ with get_db_session() as session:
     all_qualifications = session.query(Qualification).all()
     all_synergies = session.query(Synergy).all()
     
+    # 🔥 UI・UX改善パッチ：カテゴリ名の最適化と「技術士」の移動
+    for q in all_qualifications:
+        # カテゴリ名「不動産・施設管理」を「不動産管理」に短縮
+        if q.category == "不動産・施設管理":
+            q.category = "不動産管理"
+        # 「技術士」を含む資格をすべて「建築・土木」へ移動
+        if "技術士" in q.name:
+            q.category = "建築・土木"
+            
+    # シナジー条件側のカテゴリ指定も整合性を保つために修正
     for syn in all_synergies:
-        _ = syn.requirements
+        for req in syn.requirements:
+            if req.required_category == "不動産・施設管理":
+                req.required_category = "不動産管理"
     
     all_qualifications.sort(key=lambda q: (q.category, q.tier, q.name))
     qual_options = {q.name: q for q in all_qualifications}
@@ -446,25 +490,26 @@ with get_db_session() as session:
                     disabled=disable_checkbox
                 )
     else:
+        # 🔥 UI改善：横にはみ出す「タブ」を廃止し、スマートな「セレクトボックス」に変更
         categories = []
         for q in all_qualifications:
             if q.category not in categories:
                 categories.append(q.category)
                 
-        tabs = st.sidebar.tabs(categories)
-        for i, cat in enumerate(categories):
-            with tabs[i]:
-                for q in all_qualifications:
-                    if q.category == cat:
-                        disable_checkbox = (not st.session_state.is_premium) and (len(st.session_state.selected_quals_set) >= 1) and (q.name not in st.session_state.selected_quals_set)
-                        st.checkbox(
-                            q.name,
-                            value=(q.name in st.session_state.selected_quals_set),
-                            key=f"chk_{q.name}",
-                            on_change=toggle_qual,
-                            args=(q.name,),
-                            disabled=disable_checkbox
-                        )
+        selected_category = st.sidebar.selectbox("📂 カテゴリで絞り込む", categories)
+        st.sidebar.markdown(f"**【{selected_category}】の資格一覧**")
+        
+        for q in all_qualifications:
+            if q.category == selected_category:
+                disable_checkbox = (not st.session_state.is_premium) and (len(st.session_state.selected_quals_set) >= 1) and (q.name not in st.session_state.selected_quals_set)
+                st.sidebar.checkbox(
+                    q.name,
+                    value=(q.name in st.session_state.selected_quals_set),
+                    key=f"chk_{q.name}",
+                    on_change=toggle_qual,
+                    args=(q.name,),
+                    disabled=disable_checkbox
+                )
     
     st.sidebar.markdown("---")
     st.sidebar.info("💡 リストにない資格の追加リクエストは、公式X(Twitter)のDM等でいつでもお待ちしています！")
@@ -526,15 +571,16 @@ if st.session_state.is_premium:
     display_title = current_title
     display_total_score = f"{total_score} pt"
     display_bonus_detail = f"(基本: {base_score_total} + ボーナス: {bonus_score_total})"
-    display_combat_power = f"{combat_power:,}"
-    tweet_text = f"私の潜在戦闘力は『 {combat_power:,} 』！！\n最高レアリティ【{badge_name}】を獲得しました！🛡️\n\n称号：{display_title}\n異分野スキルの掛け合わせで、自分の市場価値を測ろう！\n#資格レーダー #戦闘力測定"
+    # 画面上もK,M,B,Tで省略して見やすく表示
+    display_combat_power = f"{format_combat_power(combat_power)}"
+    tweet_text = f"私の潜在戦闘力は『 {display_combat_power} 』！！\n最高レアリティ【{badge_name}】を獲得しました！🛡️\n\n称号：{display_title}\n異分野スキルの掛け合わせで、自分の市場価値を測ろう！\n#資格レーダー #戦闘力測定 #資格は登録した"
 else:
     badge_name = "🔒 プレミアム限定"
     display_title = "🔒 プレミアム限定"
     display_total_score = f"{base_score_total} pt + 🔒"
     display_bonus_detail = f"(基本: {base_score_total} + ボーナス: 🔒プレミアム限定)"
     display_combat_power = "🔒 測定不能"
-    tweet_text = f"私の潜在戦闘力（レア度）は 🔒 測定不能！\n異分野の資格を掛け合わせて、自分の本当の市場価値を測ろう！\n#資格レーダー #戦闘力測定 #スキルスコア"
+    tweet_text = f"私の潜在戦闘力（レア度）は 🔒 測定不能！\n異分野の資格を掛け合わせて、自分の本当の市場価値を測ろう！\n#資格レーダー #戦闘力測定 #スキルスコア #資格は登録した"
 
 # 3. ダッシュボードへのスコア表示
 col1, col2, col3, col4 = st.columns(4)
@@ -627,8 +673,8 @@ st.subheader("🎯 次の目標（おすすめの資格）")
 category_amazon_keyword = {
     "IT・データ": "IT 資格", "経営・ビジネス": "ビジネス 資格", "法務・労務・知財": "法務 労務 資格",
     "財務・金融": "財務 金融 資格", "語学・グローバル": "語学 英語 資格", "機械・電気": "機械 電気 資格",
-    "機械・製造": "機械 資格", "土木・建築・施工": "建築 施工管理 資格", "電気・通信・エネ": "電気 通信 資格",
-    "安全・環境・品質": "安全衛生 品質 資格"
+    "機械・製造": "機械 資格", "建築・土木": "建築 土木 資格", "電気・通信・エネ": "電気 通信 資格",
+    "安全・環境・品質": "安全衛生 品質 資格", "不動産管理": "不動産管理 資格"
 }
 
 reach_synergies = []
@@ -759,6 +805,23 @@ neuro_dive_html = '''
 </div>
 '''
 st.markdown(neuro_dive_html, unsafe_allow_html=True)
+
+# 📚 おすすめ書籍セクション
+st.markdown("---")
+st.subheader("📚 キャリア戦略を深める必読書")
+book_html = '''
+<div style="padding: 20px; background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; margin-bottom: 20px;">
+    <p style="font-weight: bold; color: #333; margin-bottom: 10px; font-size: 16px;">
+        ＼ 当アプリのコンセプト「100万分の1の希少人材」の理論を深く学ぶなら ／
+    </p>
+    <p style="font-size: 14px; color: #555; margin-bottom: 0px;">
+        note記事や本ダッシュボードで解説している「スキルの掛け算」によるキャリア戦略の根幹となる、藤原和博氏の名著です。これからの時代を生き抜くための人生戦略が詰まっています。
+    </p>
+</div>
+'''
+st.markdown(book_html, unsafe_allow_html=True)
+amazon_book_url = "[https://www.amazon.co.jp/dp/447810946X?tag=skillradar-22](https://www.amazon.co.jp/dp/447810946X?tag=skillradar-22)"
+st.link_button("👉 [PR] 藤原和博『100万人に1人の存在になる方法』をAmazonでチェック", amazon_book_url, type="primary")
 
 # 学習・開発環境（PC）セクション
 st.markdown("---")

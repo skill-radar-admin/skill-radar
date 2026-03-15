@@ -2,3 +2,6 @@ streamlit
 pandas
 plotly
 sqlalchemy
+supabase
+google-generativeai
+pillow
