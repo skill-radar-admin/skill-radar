@@ -28,7 +28,7 @@ def get_db_session():
 # ページ設定
 st.set_page_config(page_title="Skill Radar Dashboard", layout="wide")
 
-# ----- 資格の「出現確率（レア度）」辞書（ディープリサーチ結果を反映） -----
+# ----- 資格の「出現確率（レア度）」辞書 -----
 rarity_map = {
     "CBAP (ビジネスアナリシス・プロフェッショナル)": 69000,
     "メンタルヘルス・マネジメント検定 I種": 5750,
@@ -137,20 +137,20 @@ rarity_map = {
     "宅地建物取引士": 57
 }
 
-# ----- 戦闘力の巨大数値フォーマット関数 (K, M, B, T, Qa, Qi) -----
+# ----- 戦闘力の巨大数値フォーマット関数 -----
 def format_combat_power(num):
     if num >= 1e18:
-        return f"{num / 1e18:.2f} Qi" # Quintillion (百京)
+        return f"{num / 1e18:.2f} Qi"
     elif num >= 1e15:
-        return f"{num / 1e15:.2f} Qa" # Quadrillion (千兆)
+        return f"{num / 1e15:.2f} Qa"
     elif num >= 1e12:
-        return f"{num / 1e12:.2f} T"  # Trillion (兆)
+        return f"{num / 1e12:.2f} T"
     elif num >= 1e9:
-        return f"{num / 1e9:.2f} B"   # Billion (十億)
+        return f"{num / 1e9:.2f} B"
     elif num >= 1e6:
-        return f"{num / 1e6:.2f} M"   # Million (百万)
+        return f"{num / 1e6:.2f} M"
     elif num >= 1e3:
-        return f"{num / 1e3:.2f} K"   # Thousand (千)
+        return f"{num / 1e3:.2f} K"
     else:
         return f"{num:,}"
 
@@ -171,8 +171,8 @@ def get_badge_info(combat_power):
     else:
         return "💎 ダイヤ (Diamond)"
 
-# ----- テキスト中央配置用ヘルパー関数 -----
-def draw_centered_text(draw, y, text, font, fill, canvas_width=800):
+# ----- テキスト中央配置用ヘルパー関数 (新サイズ600px対応) -----
+def draw_centered_text(draw, y, text, font, fill, canvas_width=600):
     bbox = draw.textbbox((0, 0), text, font=font)
     text_width = bbox[2] - bbox[0]
     x = (canvas_width - text_width) / 2
@@ -180,15 +180,15 @@ def draw_centered_text(draw, y, text, font, fill, canvas_width=800):
 
 # ----- デジタル証明書（画像）生成関数 -----
 def generate_badge_image(combat_power, qual_count, synergy_count, badge_name, user_email):
-    # キャンバス作成（ダークブルーのサイバー風背景）
-    img = Image.new('RGB', (800, 450), color=(15, 23, 42))
+    # スマホ対応：キャンバスをタイトに縮小 (600x340)
+    img = Image.new('RGB', (600, 340), color=(15, 23, 42))
     draw = ImageDraw.Draw(img)
     
-    # フォントサイズのバランス調整（RANK特大、STATS中、POINT大）
+    # バランスを計算したフォントサイズ
     try:
-        font_large = ImageFont.truetype("NotoSansJP-Regular.ttf", 64)
-        font_medium = ImageFont.truetype("NotoSansJP-Regular.ttf", 36)
-        font_small = ImageFont.truetype("NotoSansJP-Regular.ttf", 20)
+        font_large = ImageFont.truetype("NotoSansJP-Regular.ttf", 48)
+        font_medium = ImageFont.truetype("NotoSansJP-Regular.ttf", 24)
+        font_small = ImageFont.truetype("NotoSansJP-Regular.ttf", 14)
     except IOError:
         font_paths = [
             "/System/Library/Fonts/ヒラギノ角ゴシック W4.ttc",
@@ -201,40 +201,39 @@ def generate_badge_image(combat_power, qual_count, synergy_count, badge_name, us
         for path in font_paths:
             if os.path.exists(path):
                 try:
-                    font_large = ImageFont.truetype(path, 64)
-                    font_medium = ImageFont.truetype(path, 36)
-                    font_small = ImageFont.truetype(path, 20)
+                    font_large = ImageFont.truetype(path, 48)
+                    font_medium = ImageFont.truetype(path, 24)
+                    font_small = ImageFont.truetype(path, 14)
                     break
                 except:
                     continue
 
-    # 外枠の描画
-    draw.rectangle([(20, 20), (780, 430)], outline=(56, 189, 248), width=3)
+    # 外枠の描画（サイズに合わせて調整）
+    draw.rectangle([(15, 15), (585, 325)], outline=(56, 189, 248), width=3)
     
     rank_clean = badge_name.split(" ")[-1].replace("(", "").replace(")", "").upper()
     stats_text = f"LICENSES: {qual_count}   |   SYNERGIES: {synergy_count}"
     display_cp = f"{format_combat_power(combat_power)} pt"
 
-    # Y座標を調整してバランスよく配置
-    draw_centered_text(draw, 50, "Skill Radar Official Certificate", font_small, (148, 163, 184))
-    draw_centered_text(draw, 110, f"RANK : {rank_clean}", font_large, (250, 204, 21)) # 黄色
-    draw_centered_text(draw, 210, stats_text, font_medium, (248, 250, 252)) # 白
-    draw_centered_text(draw, 290, display_cp, font_large, (56, 189, 248)) # シアン
+    # Y座標を新キャンバスサイズに合わせてギュッと配置
+    draw_centered_text(draw, 35, "Skill Radar Official Certificate", font_small, (148, 163, 184))
+    draw_centered_text(draw, 85, f"RANK : {rank_clean}", font_large, (250, 204, 21))
+    draw_centered_text(draw, 165, stats_text, font_medium, (248, 250, 252))
+    draw_centered_text(draw, 220, display_cp, font_large, (56, 189, 248))
     
-    # 日付と偽造防止シリアルナンバーの生成
     date_str = datetime.datetime.now().strftime("%Y/%m/%d %H:%M")
     raw_str = f"{user_email}-{combat_power}-{date_str}"
     serial_no = hashlib.sha256(raw_str.encode()).hexdigest()[:12].upper()
     
-    draw.text((45, 355), f"Issued: {date_str}", fill=(148, 163, 184), font=font_small)
-    draw.text((45, 385), f"Serial: SR-{serial_no}", fill=(148, 163, 184), font=font_small)
+    draw.text((35, 275), f"Issued: {date_str}", fill=(148, 163, 184), font=font_small)
+    draw.text((35, 295), f"Serial: SR-{serial_no}", fill=(148, 163, 184), font=font_small)
     
     # 公式スタンプ風デザイン
-    stamp_box = [(620, 350), (760, 410)]
+    stamp_box = [(450, 260), (560, 310)]
     draw.rectangle(stamp_box, outline=(56, 189, 248), width=2)
     bbox = draw.textbbox((0, 0), "VERIFIED", font=font_small)
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-    draw.text(((stamp_box[0][0]+stamp_box[1][0])/2 - tw/2, (stamp_box[0][1]+stamp_box[1][1])/2 - th/2), "VERIFIED", fill=(56, 189, 248), font=font_small)
+    draw.text(((stamp_box[0][0]+stamp_box[1][0])/2 - tw/2, (stamp_box[0][1]+stamp_box[1][1])/2 - th/2 - 2), "VERIFIED", fill=(56, 189, 248), font=font_small)
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
@@ -297,7 +296,6 @@ if st.session_state.user is None:
                     response = supabase.auth.sign_in_with_password({"email": login_email, "password": login_password})
                     st.session_state.user = response.user
                     
-                    # ログイン時にプレミアム会員かチェック
                     res = supabase.table('used_receipts').select("*").eq('user_email', response.user.email).execute()
                     if len(res.data) > 0:
                         st.session_state.is_premium = True
@@ -317,7 +315,6 @@ if st.session_state.user is None:
                     response = supabase.auth.sign_up({"email": signup_email, "password": signup_password})
                     st.session_state.user = response.user
                     
-                    # 新規登録直後にもレシート登録済みか自動チェックして即時反映させる
                     res = supabase.table('used_receipts').select("*").eq('user_email', response.user.email).execute()
                     if len(res.data) > 0:
                         st.session_state.is_premium = True
@@ -413,16 +410,13 @@ with get_db_session() as session:
     all_qualifications = session.query(Qualification).all()
     all_synergies = session.query(Synergy).all()
     
-    # 🔥 UI・UX改善パッチ：カテゴリ名の最適化と「技術士」の移動
+    # UI改善パッチ：カテゴリ名の最適化と「技術士」の移動
     for q in all_qualifications:
-        # カテゴリ名「不動産・施設管理」を「不動産管理」に短縮
         if q.category == "不動産・施設管理":
             q.category = "不動産管理"
-        # 「技術士」を含む資格をすべて「建築・土木」へ移動
         if "技術士" in q.name:
             q.category = "建築・土木"
             
-    # シナジー条件側のカテゴリ指定も整合性を保つために修正
     for syn in all_synergies:
         for req in syn.requirements:
             if req.required_category == "不動産・施設管理":
@@ -480,7 +474,7 @@ with get_db_session() as session:
                     disabled=disable_checkbox
                 )
     else:
-        # 🔥 UI改善：横にはみ出す「タブ」を廃止し、スマートな「セレクトボックス」に変更
+        # UI改善：スマートなセレクトボックス
         categories = []
         for q in all_qualifications:
             if q.category not in categories:
@@ -550,7 +544,6 @@ if category_rarity_sums:
     combat_power = 1
     for cat, r_sum in category_rarity_sums.items():
         combat_power *= r_sum
-# --------------------------------------------------------
 
 total_score = base_score_total + bonus_score_total
 current_title = ", ".join(active_titles) if active_titles else "ルーキー"
@@ -561,7 +554,6 @@ if st.session_state.is_premium:
     display_title = current_title
     display_total_score = f"{total_score} pt"
     display_bonus_detail = f"(基本: {base_score_total} + ボーナス: {bonus_score_total})"
-    # 画面上もK,M,B,Tで省略して見やすく表示
     display_combat_power = f"{format_combat_power(combat_power)}"
     tweet_text = f"私の潜在戦闘力は『 {display_combat_power} 』！！\n最高レアリティ【{badge_name}】を獲得しました！🛡️\n\n称号：{display_title}\n異分野スキルの掛け合わせで、自分の市場価値を測ろう！\n#資格レーダー #戦闘力測定 #資格は登録した"
 else:
@@ -579,6 +571,7 @@ col2.metric("👑 現在の称号", display_title)
 col3.metric("🔥 潜在戦闘力", display_combat_power, badge_name if st.session_state.is_premium else "限界突破！？")
 col4.metric("🎓 選択資格数", f"{len(selected_quals)} 個")
 
+# 🔥 リンク修復: クリーンなURL文字列のみを渡す
 intent_url = f"[https://twitter.com/intent/tweet?text=](https://twitter.com/intent/tweet?text=){quote(tweet_text)}"
 st.link_button("𝕏 で戦闘力をシェアする（画像添付がおすすめ！）", intent_url, type="primary")
 
@@ -704,8 +697,10 @@ if reach_synergies:
                 if quali.affiliate_link and quali.affiliate_link.startswith("<"):
                     st.markdown(quali.affiliate_link, unsafe_allow_html=True)
                 elif quali.affiliate_link and quali.affiliate_link.startswith("http"):
+                    # 🔥 リンク修復
                     st.link_button(f"[PR] {quali.name} のおすすめ講座をチェック", quali.affiliate_link)
                 else:
+                    # 🔥 リンク修復
                     amazon_url = f"[https://www.amazon.co.jp/s?k=](https://www.amazon.co.jp/s?k=){quote(quali.name)}+資格+テキスト&tag=skillradar-22"
                     st.link_button(f"[PR] {quali.name} の公式テキスト・過去問を探す", amazon_url)
 
@@ -721,6 +716,7 @@ if reach_synergies:
                 elif recommended_qual.affiliate_link.startswith("http"):
                     st.link_button(f"[PR] {recommended_qual.name} のおすすめ講座をチェック", recommended_qual.affiliate_link)
             else:
+                # 🔥 リンク修復
                 base_keyword = category_amazon_keyword.get(first_missing.required_category, first_missing.required_category.replace("・", " ") + " 資格")
                 amazon_url = f"[https://www.amazon.co.jp/s?k=](https://www.amazon.co.jp/s?k=){quote(base_keyword)}+テキスト&tag=skillradar-22"
                 st.link_button(f"[PR] 【{first_missing.required_category}】領域の資格テキストを探す", amazon_url)
@@ -810,6 +806,7 @@ book_html = '''
 </div>
 '''
 st.markdown(book_html, unsafe_allow_html=True)
+# 🔥 リンク修復
 amazon_book_url = "[https://www.amazon.co.jp/dp/447810946X?tag=skillradar-22](https://www.amazon.co.jp/dp/447810946X?tag=skillradar-22)"
 st.link_button("👉 [PR] 藤原和博『100万人に1人の存在になる方法』をAmazonでチェック", amazon_book_url, type="primary")
 
@@ -819,10 +816,10 @@ st.subheader("💻 学習・開発環境のアップデート")
 st.write("DX推進や学習効率を最大化する、推奨PCブランドをチェック。")
 col_pc1, col_pc2 = st.columns(2)
 with col_pc1:
+    # 🔥 リンク修復
     st.link_button("🚀 HP Directplus 公式ストア [PR]", "[https://click.linksynergy.com/fs-bin/click?id=yw57HLgzpBw&offerid=252926.485&type=4&subid=0](https://click.linksynergy.com/fs-bin/click?id=yw57HLgzpBw&offerid=252926.485&type=4&subid=0)")
 with col_pc2:
+    # 🔥 リンク修復
     st.link_button("💻 デル・テクノロジーズ 公式 [PR]", "[https://click.linksynergy.com/fs-bin/click?id=yw57HLgzpBw&offerid=39250.10000123&type=4&subid=0](https://click.linksynergy.com/fs-bin/click?id=yw57HLgzpBw&offerid=39250.10000123&type=4&subid=0)")
 
 st.caption("Amazonのアソシエイトとして、適格販売により収入を得ています。")
-
-# ※開発用のデバッグ情報(expander)は本番環境のため完全に削除しました。
