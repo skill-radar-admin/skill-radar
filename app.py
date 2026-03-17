@@ -345,8 +345,9 @@ st.title("🛡️ 資格スコア & シナジー可視化ダッシュボード")
 st.markdown("あなたが取得した資格を組み合わせて、**潜在戦闘力（レア度）**と**称号（シナジー）**を獲得しましょう！")
 st.caption("※当ダッシュボードはアフィリエイトプログラムによる収益化を行っており、一部のリンクにはプロモーション（PR）が含まれます。")
 
-# note記事URLの安全な取得
-note_url = get_url("aHR0cHM6Ly9ub3RlLmNvbS9ib2xkX3NuYWtlNzM3MS9uL25jY2EzN2NjODI0YWU=")
+# note記事URLの安全な取得（Base64による自動リンク化防止）
+note_url_1 = get_url("aHR0cHM6Ly9ub3RlLmNvbS9ib2xkX3NuYWtlNzM3MS9uL25jY2EzN2NjODI0YWU=")
+note_url_2 = get_url("aHR0cHM6Ly9ub3RlLmNvbS9ib2xkX3NuYWtlNzM3MS9uL243NjVhMWM2Zjk3M2U/YXBwX2xhdW5jaD1mYWxzZQ==")
 
 # ----- 👑 プレミアム機能解放セクション -----
 if not st.session_state.is_premium:
@@ -354,10 +355,13 @@ if not st.session_state.is_premium:
         st.markdown(
             f"""
             <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #e9ecef;">
-                <p style="font-weight: bold; color: #333;">【プレミアム機能の解放手順】</p>
-                <ol>
-                    <li><a href="{note_url}" target="_blank">こちらのnote記事（300円）</a>を購入します。</li>
-                    <li>購入完了画面、または届いたメールのスクリーンショットを撮影します。</li>
+                <p style="font-weight: bold; color: #333; margin-bottom: 10px;">【プレミアム機能の解放手順】</p>
+                <ol style="margin-bottom: 0;">
+                    <li style="margin-bottom: 10px;">以下の<strong>いずれか</strong>のnote記事（300円）を購入します。<br>
+                        👉 <a href="{note_url_1}" target="_blank" style="color: #0056b3; font-weight: bold; text-decoration: underline;">【悩み解決×網羅性】もうキャリアで迷わない。「資格の掛け算」で潜在戦闘力を可視化するレーダー</a><br>
+                        👉 <a href="{note_url_2}" target="_blank" style="color: #0056b3; font-weight: bold; text-decoration: underline;">【完全実録】田舎生まれ田舎育ちの凡人が、上場企業の執行役員になれた「資格の掛け算」の法則</a>
+                    </li>
+                    <li style="margin-bottom: 10px;">購入完了画面、または届いたメールのスクリーンショットを撮影します。</li>
                     <li>下の枠に画像をアップロードしてください。AIが自動判定し、即座にアカウントをアップグレードします！</li>
                 </ol>
             </div>
